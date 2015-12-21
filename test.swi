@@ -1,0 +1,36 @@
+func intToString(n: Int) -> String;
+func doubleToString(x: Double) -> String;
+func abs(x: Double) -> Double;
+func print(str: String);
+
+func fib(x: Int) -> Int {
+	if x < 2 {
+		return 1;
+	} else {
+		return fib(x - 1) + fib(x - 2);
+	}
+}
+
+func babylonianSqrt(x: Double) -> Double {
+	if x == 0.0 {
+		return 0.0;
+	}
+
+	var eps = 0.00000001;
+	var y = 1.0 / x;
+
+	while abs(y - x / y) > eps {
+		y = (y + x / y) / 2;
+	}
+
+	return y;
+}
+
+func swimain() {
+	var k = 10;
+	var fibK = fib(k);
+	var fibKStr = intToString(fibK);
+	print(fibKStr);
+
+	print(doubleToString(babylonianSqrt(10 + 15.0)));
+}

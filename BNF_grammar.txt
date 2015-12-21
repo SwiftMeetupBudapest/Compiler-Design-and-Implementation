@@ -1,0 +1,47 @@
+#
+# SwiSwi Context-Free Grammar in a variation of Backus-Naur Form
+#
+
+program        := (funcDecl | funcDef) * # 0 or more function definitions or declarations
+
+funcDecl       := funcHead ';'
+funcDef        := funcHead block
+funcHead       := 'func' IDENT '(' (IDENT ':' IDENT)? ')' ('->' IDENT)? # '?' means optional
+
+block          := '{' (statement)* '}'
+statement      :=   return
+                  | if
+                  | while
+                  | varDecl
+                  | block
+                  | exprStmt
+
+return         := 'return' expr? ';' # expr is optional
+if             := 'if' expr block ('else' (block | if))?
+while          := 'while' expr block
+varDecl        := 'var' IDENT '=' expr ';'
+exprStmt       := expr ';'
+
+expr           := assignment
+assignment     := or ('=' assignment)?
+or             := or '||' and | and
+and            := and '&&' comparison | comparison
+comparison     := additive (comparisonOp additive)?
+comparisonOp   := '<' | '<=' | '>' | '>=' | '==' | '!='
+additive       := additive ('+' | '-') multiplicative | multiplicative
+multiplicative := multiplicative ('*' | '/') prefix | prefix
+
+prefix         := ('+' | '-' | '!') prefix | postfix
+postfix        := call | subscript | term
+
+call           := postfix '(' expr? ')'
+subscript      := postfix '[' expr ']'
+
+term           := IDENT | INT | FLOAT | STRING | '(' expr ')'
+
+# Explanation for terminal symbols:
+# IDENT is an identifier (Token.Kind.Word)
+# INT is an integer literal
+# FLOAT is a floating-point literal
+# STRING is a string literal
+
