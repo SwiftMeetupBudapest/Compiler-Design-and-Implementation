@@ -12,22 +12,32 @@
 
 import Foundation
 
-let fname = String.fromCString(Process.unsafeArgv[1])!
-let source = try NSString(contentsOfFile: fname, encoding: NSUTF8StringEncoding)
-let lexer = Lexer(source as String)
+func main() {
+	let fname = String.fromCString(Process.unsafeArgv[1])!
+	let source = try! NSString(contentsOfFile: fname, encoding: NSUTF8StringEncoding)
 
+	let lexer = Lexer(source as String)
 
-if let tokens = lexer.lex() {
+	guard let tokens = lexer.lex() else {
+		print(lexer.error)
+		print(lexer.location)
+		return
+	}
+
 	let parser = Parser(tokens)
-	if let ast = parser.parse() {
-        var ctx = DeclCtx()
-        ast.inferType(&ctx)
-		print(ast.toString(0))
-	} else {
+	guard let ast = parser.parse() else {
 		print(parser.error)
 		print(parser.location)
+		return
 	}
-} else {
-	print(lexer.error)
-	print(lexer.location)
+
+	var ctx = DeclCtx()
+	if ast.inferType(&ctx) != nil {
+		print(ast.toString(0))
+	} else {
+		print(ctx.errmsg!)
+		print("at \(ctx.errnode!.loc)")
+	}
 }
+
+main()

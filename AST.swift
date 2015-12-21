@@ -13,276 +13,329 @@
 import Foundation
 
 func indent(n: Int) -> String {
-    return (0..<n).map({ _ in "  " }).reduce("", combine: {$0 + $1})
+	return (0..<n).map({ _ in "  " }).reduce("", combine: { $0 + $1 })
 }
 
 class AST {
-    let loc: SrcLoc
-    var typeAnn: TypeAnn?
+	let loc: SrcLoc
+	var typeAnn: TypeAnn?
 
-    init(_ loc: SrcLoc) {
-        self.loc = loc
-        self.typeAnn = nil
-    }
+	init(_ loc: SrcLoc) {
+		self.loc = loc
+		self.typeAnn = nil
+	}
 
-    func toString(level: Int) -> String {
-        return indent(level) + "<AST \(self); type = \(self.typeAnn)>\n"
-    }
+	func toString(level: Int) -> String {
+		return indent(level) + "<AST \(self); type = \(self.typeAnn?.toString())>\n"
+	}
 
-    func inferType(inout ctx: DeclCtx) -> TypeAnn {
-        assert(false, "cannot infer type of generic AST")
-        return VoidType()
-    }
+	func inferType(inout ctx: DeclCtx) -> TypeAnn? {
+		ctx.errmsg = "cannot infer type of generic AST"
+		ctx.errnode = self
+		return nil
+	}
 }
 
 class ProgramAST : AST {
-    let children: [AST]
+	let children: [AST]
 
-    init(_ loc: SrcLoc, _ children: [AST]) {
-        self.children = children
-        super.init(loc)
-    }
+	init(_ loc: SrcLoc, _ children: [AST]) {
+		self.children = children
+		super.init(loc)
+	}
 
-    override func toString(level: Int) -> String {
-        var s = indent(level) + "Program\n"
-        s += children.reduce("", combine: {$0 + $1.toString(level + 1).trimTail() + "\n"})
-        return s
-    }
+	override func toString(level: Int) -> String {
+		var s = indent(level) + "Program\n"
+		s += children.reduce("", combine: { $0 + $1.toString(level + 1).trimTail() + "\n" })
+		return s
+	}
 
-    override func inferType(inout ctx: DeclCtx) -> TypeAnn {
-        for child in children {
-            child.inferType(&ctx)
-        }
-        return VoidType()
-    }
+	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
+		for child in children {
+			if child.inferType(&ctx) == nil {
+				return nil
+			}
+		}
+
+		self.typeAnn = VoidType()
+		return self.typeAnn
+	}
 }
 
 class FuncDeclAST : AST {
-    let name: String
-    let paramName: String?
-    let paramType: String?
-    let returnType: String?
+	let name: String
+	let paramName: String?
+	let paramType: String?
+	let returnType: String?
 
-    init(
-         _ loc: SrcLoc,
-         _ name: String,
-         _ paramName: String?,
-         _ paramType: String?,
-         _ returnType: String?
-    ) {
-        self.name = name
-        self.paramName = paramName
-        self.paramType = paramType
-        self.returnType = returnType
-        super.init(loc)
-    }
+	init(
+		 _ loc: SrcLoc,
+		 _ name: String,
+		 _ paramName: String?,
+		 _ paramType: String?,
+		 _ returnType: String?
+	) {
+		self.name = name
+		self.paramName = paramName
+		self.paramType = paramType
+		self.returnType = returnType
+		super.init(loc)
+	}
 
-    override func toString(level: Int) -> String {
-        var s = indent(level) + "Function '\(name)'"
-        if (paramName != nil) {
-            s += " :: \(paramName!): \(paramType!)"
-        }
-        if (returnType != nil) {
-            s += paramName != nil ? " -> " : " :: "
-            s += returnType!
-        }
-        s += " (inf. type = \(self.typeAnn))\n"
-        return s
-    }
+	override func toString(level: Int) -> String {
+		var s = indent(level) + "Function '\(name)'"
+		if (paramName != nil) {
+			s += " :: \(paramName!): \(paramType!)"
+		}
+		if (returnType != nil) {
+			s += paramName != nil ? " -> " : " :: "
+			s += returnType!
+		}
+		s += " (inf. type = \(self.typeAnn?.toString()))\n"
+		return s
+	}
 
-    override func inferType(inout ctx: DeclCtx) -> TypeAnn {
-        let ptype = TypeFromTypeName(paramType)
-        let rtype = TypeFromTypeName(returnType)
-        self.typeAnn = FunctionType(ptype, rtype)
-        ctx.globals[self.name] = self.typeAnn
-        return self.typeAnn!
-    }
+	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
+		let ptype = TypeFromTypeName(paramType)
+		let rtype = TypeFromTypeName(returnType)
+		self.typeAnn = FunctionType(ptype, rtype)
+		ctx.globals[self.name] = self.typeAnn
+		return self.typeAnn
+	}
 }
 
 class FuncDefAST : FuncDeclAST {
-    let body: AST
+	let body: AST
 
-    init(
-         _ loc: SrcLoc,
-         _ name: String,
-         _ paramName: String?,
-         _ paramType: String?,
-         _ returnType: String?,
-         _ body: AST
-    ) {
-        self.body = body
-        super.init(loc, name, paramName, paramType, returnType)
-    }
+	init(
+		 _ loc: SrcLoc,
+		 _ name: String,
+		 _ paramName: String?,
+		 _ paramType: String?,
+		 _ returnType: String?,
+		 _ body: AST
+	) {
+		self.body = body
+		super.init(loc, name, paramName, paramType, returnType)
+	}
 
-    override func toString(level: Int) -> String {
-        var s = super.toString(level).trimTail() + "\n"
-        s += body.toString(level + 1).trimTail() + "\n"
-        return s
-    }
+	override func toString(level: Int) -> String {
+		var s = super.toString(level).trimTail() + "\n"
+		s += body.toString(level + 1).trimTail() + "\n"
+		return s
+	}
 
-    override func inferType(inout ctx: DeclCtx) -> TypeAnn {
-        // If we have a parameter, we add its declaration.
-        if let pname = self.paramName, ptype = self.paramType {
-            ctx.scopes.append([pname:TypeFromTypeName(ptype)])
-        }
+	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
+		// If we have a parameter, we add its declaration.
+		if let pname = self.paramName, ptype = self.paramType {
+			ctx.scopes.append([pname:TypeFromTypeName(ptype)])
+		}
 
-        let ownType = super.inferType(&ctx)
-        self.body.inferType(&ctx)
-        return ownType
-    }
+		let ownType = super.inferType(&ctx) as! FunctionType
+
+		ctx.functionRetType = ownType.retType
+		if self.body.inferType(&ctx) == nil {
+			return nil
+		}
+		ctx.functionRetType = nil
+
+		return ownType
+	}
 }
 
 class BlockAST : AST {
-    let children: [AST]
+	let children: [AST]
 
-    init(_ loc: SrcLoc, _ children: [AST]) {
-        self.children = children
-        super.init(loc)
-    }
+	init(_ loc: SrcLoc, _ children: [AST]) {
+		self.children = children
+		super.init(loc)
+	}
 
-    override func toString(level: Int) -> String {
-        var s = indent(level)
-        s += "Block\n"
-        s += children.reduce("", combine: {$0 + $1.toString(level + 1).trimTail() + "\n"})
-        return s
-    }
+	override func toString(level: Int) -> String {
+		var s = indent(level)
+		s += "Block\n"
+		s += children.reduce("", combine: { $0 + $1.toString(level + 1).trimTail() + "\n" })
+		return s
+	}
 
-    override func inferType(inout ctx: DeclCtx) -> TypeAnn {
-        // push scope
-        ctx.scopes.append([:])
+	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
+		// push scope
+		ctx.scopes.append([:])
 
-        for child in children {
-            child.inferType(&ctx)
-        }
+		for child in children {
+			if child.inferType(&ctx) == nil {
+				return nil
+			}
+		}
 
-        // pop scope
-        ctx.scopes.removeLast()
-        
-        self.typeAnn = VoidType()
-        return self.typeAnn!
-    }
+		// pop scope
+		ctx.scopes.removeLast()
+		
+		self.typeAnn = VoidType()
+		return self.typeAnn
+	}
 }
 
 class ReturnAST : AST {
-    let expression: AST?
+	let expression: AST?
 
-    override init(_ loc: SrcLoc) {
-        expression = nil
-        super.init(loc)
-    }
-    
-    init(_ loc: SrcLoc, _ expression: AST) {
-        self.expression = expression
-        super.init(loc)
-    }
+	override init(_ loc: SrcLoc) {
+		expression = nil
+		super.init(loc)
+	}
+	
+	init(_ loc: SrcLoc, _ expression: AST) {
+		self.expression = expression
+		super.init(loc)
+	}
 
-    override func toString(level: Int) -> String {
-        var s = indent(level) + "Return\n"
-        if let expr = expression {
-            s += expr.toString(level + 1).trimTail() + "\n"
-        }
-        return s
-    }
+	override func toString(level: Int) -> String {
+		var s = indent(level) + "Return\n"
+		if let expr = expression {
+			s += expr.toString(level + 1).trimTail() + "\n"
+		}
+		return s
+	}
 
-    override func inferType(inout ctx: DeclCtx) -> TypeAnn {
-        if let expr = self.expression {
-            self.typeAnn = expr.inferType(&ctx)
-        } else {
-            self.typeAnn = VoidType()
-        }
-        return self.typeAnn!
-    }
+	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
+		if let expr = self.expression {
+			guard let type = expr.inferType(&ctx) else {
+				return nil
+			}
+			self.typeAnn = type
+		} else {
+			self.typeAnn = VoidType()
+		}
+
+		if self.typeAnn! != ctx.functionRetType! {
+			ctx.errmsg = "Cannot return value of type \(self.typeAnn!.toString()) from function returning \(ctx.functionRetType!.toString())"
+			ctx.errnode = self.expression ?? self
+			return nil
+		}
+
+		return self.typeAnn!
+	}
 }
 
 class IfThenElseAST : AST {
-    let condition: AST
-    let thenBranch: AST
-    let elseBranch: AST?
+	let condition: AST
+	let thenBranch: AST
+	let elseBranch: AST?
 
-    init(_ loc: SrcLoc, _ condition: AST, _ thenBranch: AST, _ elseBranch: AST?) {
-        self.condition = condition
-        self.thenBranch = thenBranch
-        self.elseBranch = elseBranch
-        super.init(loc)
-    }
+	init(_ loc: SrcLoc, _ condition: AST, _ thenBranch: AST, _ elseBranch: AST?) {
+		self.condition = condition
+		self.thenBranch = thenBranch
+		self.elseBranch = elseBranch
+		super.init(loc)
+	}
 
-    override func toString(level: Int) -> String {
-        var s = indent(level) + "If\n"
-        s += indent(level + 1) + "Condition:\n"
-        s += condition.toString(level + 2).trimTail() + "\n"
-        s += indent(level + 1) + "Then:\n"
-        s += thenBranch.toString(level + 2).trimTail() + "\n"
+	override func toString(level: Int) -> String {
+		var s = indent(level) + "If\n"
+		s += indent(level + 1) + "Condition:\n"
+		s += condition.toString(level + 2).trimTail() + "\n"
+		s += indent(level + 1) + "Then:\n"
+		s += thenBranch.toString(level + 2).trimTail() + "\n"
 
-        if elseBranch != nil {
-            s += indent(level + 1) + "Else:\n"
-            s += elseBranch!.toString(level + 2).trimTail() + "\n"
-        }
+		if elseBranch != nil {
+			s += indent(level + 1) + "Else:\n"
+			s += elseBranch!.toString(level + 2).trimTail() + "\n"
+		}
 
-        return s
-    }
+		return s
+	}
 
-    override func inferType(inout ctx: DeclCtx) -> TypeAnn {
-        self.condition.inferType(&ctx)
-        self.thenBranch.inferType(&ctx)
-        self.elseBranch?.inferType(&ctx)
-        
-        self.typeAnn = VoidType()
-        return self.typeAnn!
-    }
+	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
+		guard let condType = self.condition.inferType(&ctx) else {
+			return nil
+		}
+
+		if condType != BoolType() {
+			ctx.errmsg = "condition of if statement must be a Boolean"
+			ctx.errnode = self.condition
+			return nil
+		}
+
+		if self.thenBranch.inferType(&ctx) == nil {
+			return nil
+		}
+
+		if let eb = self.elseBranch {
+			if eb.inferType(&ctx) == nil {
+				return nil
+			}
+		}
+		
+		self.typeAnn = VoidType()
+		return self.typeAnn
+	}
 }
 
 class WhileLoopAST : AST {
-    let condition: AST
-    let body: AST
+	let condition: AST
+	let body: AST
 
-    init(_ loc: SrcLoc, _ condition: AST, _ body: AST) {
-        self.condition = condition
-        self.body = body
-        super.init(loc)
-    }
+	init(_ loc: SrcLoc, _ condition: AST, _ body: AST) {
+		self.condition = condition
+		self.body = body
+		super.init(loc)
+	}
 
-    override func toString(level: Int) -> String {
-        var s = indent(level) + "While Loop\n"
-        s += indent(level + 1) + "Condition:\n"
-        s += condition.toString(level + 2).trimTail() + "\n"
-        s += indent(level + 1) + "Body:\n"
-        s += body.toString(level + 2).trimTail() + "\n"
-        return s
-    }
-    
-    override func inferType(inout ctx: DeclCtx) -> TypeAnn {
-        self.condition.inferType(&ctx)
-        self.body.inferType(&ctx)
+	override func toString(level: Int) -> String {
+		var s = indent(level) + "While Loop\n"
+		s += indent(level + 1) + "Condition:\n"
+		s += condition.toString(level + 2).trimTail() + "\n"
+		s += indent(level + 1) + "Body:\n"
+		s += body.toString(level + 2).trimTail() + "\n"
+		return s
+	}
+	
+	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
+		guard let condType = self.condition.inferType(&ctx) else {
+			return nil
+		}
 
-        self.typeAnn = VoidType()
-        return self.typeAnn!
-    }
+		if condType != BoolType() {
+			ctx.errmsg = "condition of while loop must be a Boolean"
+			ctx.errnode = self.condition
+			return nil
+		}
+
+		if self.body.inferType(&ctx) == nil {
+			return nil
+		}
+
+		self.typeAnn = VoidType()
+		return self.typeAnn
+	}
 }
 
 class VarDeclAST : AST {
-    let name: String
-    let initExpr: AST
+	let name: String
+	let initExpr: AST
 
-    init(_ loc: SrcLoc, _ name: String, _ initExpr: AST) {
-        self.name = name
-        self.initExpr = initExpr
-        super.init(loc)
-    }
+	init(_ loc: SrcLoc, _ name: String, _ initExpr: AST) {
+		self.name = name
+		self.initExpr = initExpr
+		super.init(loc)
+	}
 
-    override func toString(level: Int) -> String {
-        var s = indent(level) + "Variable Declaration\n"
-        s += indent(level + 1) + "Name: \(name)\n"
-        s += indent(level + 1) + "Init Expr:\n"
-        s += initExpr.toString(level + 2).trimTail() + "\n"
-        return s
-    }
+	override func toString(level: Int) -> String {
+		var s = indent(level) + "Variable Declaration\n"
+		s += indent(level + 1) + "Name: \(name)\n"
+		s += indent(level + 1) + "Init Expr:\n"
+		s += initExpr.toString(level + 2).trimTail() + "\n"
+		return s
+	}
 
-    override func inferType(inout ctx: DeclCtx) -> TypeAnn {
-        self.typeAnn = self.initExpr.inferType(&ctx)
-        // Array.last is read-only...
-        ctx.scopes[ctx.scopes.count - 1][self.name] = self.typeAnn!
-        return self.typeAnn!
-    }
+	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
+		if let t = self.initExpr.inferType(&ctx) {
+			// Array.last is read-only...
+			self.typeAnn = t
+			ctx.scopes[ctx.scopes.count - 1][self.name] = t
+			return t
+		}
+		return nil
+	}
 }
 
 ///////////////////////////////
@@ -290,247 +343,310 @@ class VarDeclAST : AST {
 ///////////////////////////////
 
 class IntegerLiteralAST : AST {
-    let value: Int
+	let value: Int
 
-    init(_ loc: SrcLoc, _ value: Int) {
-        self.value = value
-        super.init(loc)
-    }
+	init(_ loc: SrcLoc, _ value: Int) {
+		self.value = value
+		super.init(loc)
+	}
 
-    override func toString(level: Int) -> String {
-        return indent(level) + "Integer \(value) (type = \(self.typeAnn))\n"
-    }
+	override func toString(level: Int) -> String {
+		return indent(level) + "Integer \(value) (type = \(self.typeAnn?.toString()))\n"
+	}
 
-    override func inferType(inout ctx: DeclCtx) -> TypeAnn {
-        self.typeAnn = IntType()
-        return self.typeAnn!
-    }
+	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
+		self.typeAnn = IntType()
+		return self.typeAnn!
+	}
 }
-    
+	
 class FloatingLiteralAST : AST {
-    let value: Double
+	let value: Double
 
-    init(_ loc: SrcLoc, _ value: Double) {
-        self.value = value
-        super.init(loc)
-    }
+	init(_ loc: SrcLoc, _ value: Double) {
+		self.value = value
+		super.init(loc)
+	}
 
-    override func toString(level: Int) -> String {
-        return indent(level) + "Floating \(value) (type = \(self.typeAnn))\n"
-    }
-    
-    override func inferType(inout ctx: DeclCtx) -> TypeAnn {
-        self.typeAnn = DoubleType()
-        return self.typeAnn!
-    }
+	override func toString(level: Int) -> String {
+		return indent(level) + "Floating \(value) (type = \(self.typeAnn?.toString()))\n"
+	}
+	
+	override func inferType(inout ctx: DeclCtx) -> TypeAnn {
+		self.typeAnn = DoubleType()
+		return self.typeAnn!
+	}
 }
 
 class StringLiteralAST : AST {
-    let value: String
-    
-    init(_ loc: SrcLoc, _ value: String) {
-        self.value = value
-        super.init(loc)
-    }
+	let value: String
+	
+	init(_ loc: SrcLoc, _ value: String) {
+		self.value = value
+		super.init(loc)
+	}
 
-    override func toString(level: Int) -> String {
-        return indent(level) + "String \"\(value)\" (type = \(self.typeAnn))\n"
-    }
+	override func toString(level: Int) -> String {
+		return indent(level) + "String \"\(value)\" (type = \(self.typeAnn?.toString()))\n"
+	}
 
-    override func inferType(inout ctx: DeclCtx) -> TypeAnn {
-        self.typeAnn = StringType()
-        return self.typeAnn!
-    }
+	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
+		self.typeAnn = StringType()
+		return self.typeAnn!
+	}
 }
-              
+			  
 class IdentifierAST : AST {
-    let name: String
-    
-    init(_ loc: SrcLoc, _ name: String) {
-        self.name = name
-        super.init(loc)
-    }
+	let name: String
+	
+	init(_ loc: SrcLoc, _ name: String) {
+		self.name = name
+		super.init(loc)
+	}
 
-    override func toString(level: Int) -> String {
-        return indent(level) + "Identifier \(name) (type = \(self.typeAnn))\n"
-    }
+	override func toString(level: Int) -> String {
+		return indent(level) + "Identifier \(name) (type = \(self.typeAnn?.toString()))\n"
+	}
 
-    override func inferType(inout ctx: DeclCtx) -> TypeAnn {
-        for scope in ctx.scopes.reverse() {
-            if let type = scope[self.name] {
-                self.typeAnn = type
-                return type
-            }
-        }
+	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
+		for scope in ctx.scopes.reverse() {
+			if let type = scope[self.name] {
+				self.typeAnn = type
+				return type
+			}
+		}
 
-        if let type = ctx.globals[self.name] {
-            self.typeAnn = type
-            return type
-        }
+		if let type = ctx.globals[self.name] {
+			self.typeAnn = type
+			return type
+		}
 
-        assert(false, "undeclared identifier: \(self.name)")
-        return self.typeAnn! // nil at this point, would crash anyway
-    }
+		ctx.errmsg = "undeclared identifier: \(self.name)"
+		ctx.errnode = self
+		return nil
+	}
 }
 
 class BinaryOpAST : AST {
-    let op: String
-    let lhs: AST
-    let rhs: AST
+	let op: String
+	let lhs: AST
+	let rhs: AST
 
-    init(_ loc: SrcLoc, _ op: String, _ lhs: AST, _ rhs: AST) {
-        self.op = op
-        self.lhs = lhs
-        self.rhs = rhs
-        super.init(loc)
-    }
+	init(_ loc: SrcLoc, _ op: String, _ lhs: AST, _ rhs: AST) {
+		self.op = op
+		self.lhs = lhs
+		self.rhs = rhs
+		super.init(loc)
+	}
 
-    override func toString(level: Int) -> String {
-        var s = indent(level) + "BinaryOp \"\(op)\" (type = \(self.typeAnn))\n"
-        s += lhs.toString(level + 1).trimTail() + "\n"
-        s += rhs.toString(level + 1).trimTail() + "\n"
-        return s
-    }
+	override func toString(level: Int) -> String {
+		var s = indent(level) + "BinaryOp \"\(op)\" (type = \(self.typeAnn?.toString()))\n"
+		s += lhs.toString(level + 1).trimTail() + "\n"
+		s += rhs.toString(level + 1).trimTail() + "\n"
+		return s
+	}
 
-    override func inferType(inout ctx: DeclCtx) -> TypeAnn {
-        let lt = lhs.inferType(&ctx)
-        let rt = rhs.inferType(&ctx)
+	// TODO: this needs a massive amount of refactoring
+	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
+		guard let lt = lhs.inferType(&ctx), rt = rhs.inferType(&ctx) else {
+			return nil
+		}
 
-        if lt is IntType && rt is IntType {
-            self.typeAnn = IntType()
-        } else if lt is IntType && rt is DoubleType
-                  || lt is DoubleType && rt is IntType {
-            self.typeAnn = DoubleType()
-        } else if lt is DoubleType && rt is DoubleType {
-            self.typeAnn = DoubleType()
-        } else if op == "+" && lt is StringType && rt is StringType {
-            self.typeAnn = StringType()
-        } else {
-            assert(
-                false,
-                "operator \(op) cannot have operands of type \(lt) and \(lt)"
-            )
-        }
-        
-        return self.typeAnn!
-    }
+		switch op {
+		case "=":
+			if !(lhs is IdentifierAST) {
+				ctx.errmsg = "LHS of assignment must be a variable"
+				ctx.errnode = self
+				return nil
+			}
+
+			if lt == rt {
+				self.typeAnn = VoidType()
+			} else {
+				ctx.errmsg = "value of type \(rt.toString()) cannot be assigned to variable of type \(lt.toString())"
+				ctx.errnode = self
+				return nil
+			}
+		case "==", "!=", "<=", "<", ">=", ">":
+			if lt == rt {
+				self.typeAnn = BoolType()
+			} else {
+				ctx.errmsg = "values of type \(lt.toString()) and \(rt.toString()) cannot be compared using \(op)"
+				ctx.errnode = self
+				return nil
+			}
+		case "+":
+			if lt == StringType() && rt == StringType() {
+				self.typeAnn = StringType()
+				break
+			}
+			fallthrough
+		case "-", "*", "/":
+			if lt.isNumeric() && rt.isNumeric() {
+				if lt == IntType() && rt == IntType() {
+					self.typeAnn = IntType()
+				} else {
+					self.typeAnn = DoubleType()
+				}
+			} else {
+				ctx.errmsg = "\(op) cannot be applied to values of type \(lt.toString()) and \(rt.toString())"
+				ctx.errnode = self
+				return nil
+			}
+		case "&&", "||":
+			if lt == BoolType() && rt == BoolType() {
+				self.typeAnn = BoolType()
+			} else {
+				ctx.errmsg = "\(op) can only be applied to Bool arguments"
+				ctx.errnode = self
+				return nil
+			}
+		default:
+			ctx.errmsg = "unknown operator: \(op)"
+			ctx.errnode = self
+			return nil
+		}
+		
+		return self.typeAnn!
+	}
 }
 
 class PrefixOpAST : AST {
-    let op: String
-    let child: AST
+	let op: String
+	let child: AST
 
-    init(_ loc: SrcLoc, _ op: String, _ child: AST) {
-        self.op = op
-        self.child = child
-        super.init(loc)
-    }
+	init(_ loc: SrcLoc, _ op: String, _ child: AST) {
+		self.op = op
+		self.child = child
+		super.init(loc)
+	}
 
-    override func toString(level: Int) -> String {
-        var s = indent(level) + "Prefix \(op) (type = \(self.typeAnn))\n"
-        s += child.toString(level + 1).trimTail() + "\n"
-        return s
-    }
+	override func toString(level: Int) -> String {
+		var s = indent(level) + "Prefix \(op) (type = \(self.typeAnn?.toString()))\n"
+		s += child.toString(level + 1).trimTail() + "\n"
+		return s
+	}
 
-    override func inferType(inout ctx: DeclCtx) -> TypeAnn {
-        let ct = child.inferType(&ctx)
-        if ct is IntType || ct is DoubleType {
-            self.typeAnn = ct
-        } else {
-            assert(
-                false,
-                "prefix operator \(op) cannot have argument of type \(ct)"
-            )
-        }
+	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
+		guard let ct = child.inferType(&ctx) else {
+			return nil
+		}
 
-        return self.typeAnn!
-    }
+		switch op {
+		case "!":
+			if ct is BoolType {
+				self.typeAnn = BoolType()
+			} else {
+				ctx.errmsg = "argument of unary '!' is not a Bool" +
+				  " but a(n) \(ct.toString())"
+				ctx.errnode = self
+				return nil
+			}
+		case "+": fallthrough
+		case "-":
+			if ct.isNumeric() {
+				self.typeAnn = ct
+			} else {
+				ctx.errmsg = "prefix operator \(op) cannot have an argument of type \(ct.toString())"
+				ctx.errnode = self
+				return nil
+			}
+		default:
+			ctx.errmsg = "unrecognized operator \(op)"
+			ctx.errnode = self
+			return nil
+		}
+
+		return self.typeAnn!
+	}
 }
 
 class SubscriptAST : AST {
-    let object: AST
-    let subscriptExpr: AST
+	let object: AST
+	let subscriptExpr: AST
 
-    init(_ loc: SrcLoc, _ object: AST, _ subscriptExpr: AST) {
-        self.object = object
-        self.subscriptExpr = subscriptExpr
-        super.init(loc)
-    }
+	init(_ loc: SrcLoc, _ object: AST, _ subscriptExpr: AST) {
+		self.object = object
+		self.subscriptExpr = subscriptExpr
+		super.init(loc)
+	}
 
-    override func toString(level: Int) -> String {
-        var s = indent(level) + "Subscript\n"
-        s += indent(level + 1) + "Object:\n"
-        s += object.toString(level + 2).trimTail() + "\n"
-        s += indent(level + 1) + "Subscript:\n"
-        s += subscriptExpr.toString(level + 2).trimTail() + "\n"
-        return s
-    }
+	override func toString(level: Int) -> String {
+		var s = indent(level) + "Subscript\n"
+		s += indent(level + 1) + "Object:\n"
+		s += object.toString(level + 2).trimTail() + "\n"
+		s += indent(level + 1) + "Subscript:\n"
+		s += subscriptExpr.toString(level + 2).trimTail() + "\n"
+		return s
+	}
 
-    override func inferType(inout ctx: DeclCtx) -> TypeAnn {
-        assert(false, "unimplemented")
-        return self.typeAnn!
-    }
+	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
+		ctx.errmsg = "subscripts are unimplemented"
+		ctx.errnode = self
+		return nil
+	}
 }
 
 class FuncCallAST : AST {
-    let function: AST
-    let parameter: AST?
+	let function: AST
+	let parameter: AST?
 
-    init(_ loc: SrcLoc, _ function: AST) {
-        self.function = function
-        self.parameter = nil
-        super.init(loc)
-    }
+	init(_ loc: SrcLoc, _ function: AST) {
+		self.function = function
+		self.parameter = nil
+		super.init(loc)
+	}
 
-    init(_ loc: SrcLoc, _ function: AST, _ parameter: AST) {
-        self.function = function
-        self.parameter = parameter
-        super.init(loc)
-    }
+	init(_ loc: SrcLoc, _ function: AST, _ parameter: AST) {
+		self.function = function
+		self.parameter = parameter
+		super.init(loc)
+	}
 
-    override func toString(level: Int) -> String {
-        var s = indent(level) + "Funcion Call (type = \(self.typeAnn))\n"
-        s += indent(level + 1) + "Function:\n"
-        s += function.toString(level + 2).trimTail() + "\n"
-        
-        if parameter != nil {
-            s += indent(level + 1) + "Parameter:\n"
-            s += parameter!.toString(level + 2).trimTail() + "\n"
-        }
-        
-        return s
-    }
+	override func toString(level: Int) -> String {
+		var s = indent(level) + "Funcion Call (type = \(self.typeAnn?.toString()))\n"
+		s += indent(level + 1) + "Function:\n"
+		s += function.toString(level + 2).trimTail() + "\n"
+		
+		if parameter != nil {
+			s += indent(level + 1) + "Parameter:\n"
+			s += parameter!.toString(level + 2).trimTail() + "\n"
+		}
+		
+		return s
+	}
 
-    override func inferType(inout ctx: DeclCtx) -> TypeAnn {
-        let actParamType: TypeAnn
-        if let param = self.parameter {
-            actParamType = param.inferType(&ctx)
-        } else {
-            actParamType = VoidType()
-        }
+	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
+		let actParamType: TypeAnn
+		if let param = self.parameter {
+			if let pt = param.inferType(&ctx) {
+				actParamType = pt
+			} else {
+				return nil
+			}
+		} else {
+			actParamType = VoidType()
+		}
 
-        if let fnType = function.inferType(&ctx) as? FunctionType {
-            let formalTypeName = String(UTF8String: object_getClassName(fnType.argType))
-            let actualTypeName = String(UTF8String: object_getClassName(actParamType))
-            if formalTypeName == actualTypeName {
-                self.typeAnn = fnType.retType
-            } else {
-                // print(
-                assert(
-                    false,
-                    "warning: function taking argument of type \(fnType.argType)" +
-                    " was passed an argument of type \(actParamType)" +
-                    " at \(self.loc)"    
-                )
-                // self.typeAnn = fnType.retType
-            }
-        } else {
-            assert(
-                false,
-                "callee is of non-function type \(function.inferType(&ctx))"
-            )
-        }
+		guard let maybeFnType = function.inferType(&ctx) else {
+			return nil
+		}
+		
+		guard let fnType = maybeFnType as? FunctionType else {
+			ctx.errmsg = "callee is of non-function type \(maybeFnType.toString())"
+			ctx.errnode = function
+			return nil
+		}
 
-        return self.typeAnn!
-    }
+		if fnType.argType == actParamType {
+			self.typeAnn = fnType.retType
+		} else {
+			ctx.errmsg = "function taking argument of type \(fnType.argType.toString())" +
+			  " was passed an argument of type \(actParamType.toString())"
+			ctx.errnode = self
+			return nil
+		}
+
+		return self.typeAnn!
+	}
 }

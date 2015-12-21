@@ -13,8 +13,8 @@
 import Foundation
 
 extension String {
-    func trimTail() -> String {
-        if self.characters.count > 0 && self[self.endIndex.predecessor()] == "\n" {
+	func trimTail() -> String {
+		if self.characters.count > 0 && self[self.endIndex.predecessor()] == "\n" {
 			return self.substringToIndex(self.endIndex.predecessor())
 		}
 		return self
