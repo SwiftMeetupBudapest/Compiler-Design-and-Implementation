@@ -106,14 +106,14 @@ Remarks:
 
  C |- a : T      C |- b : T
 ------------------------------ T \elem { Bool, Int, String }
-      C |= a < b : Bool
+      C |- a < b : Bool
 
                                         (ditto for >, <=, >=, ==, !=)
 
 
  C |- x : T      C |- expr : T
 ------------------------------
-     C |= x = expr : Void
+     C |- x = expr : Void
 
 
  C |- expr : Bool

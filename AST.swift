@@ -468,6 +468,12 @@ class BinaryOpAST : AST {
 				return nil
 			}
 		case "==", "!=", "<=", "<", ">=", ">":
+			if lt is FunctionType || rt is FunctionType {
+				ctx.errmsg = "function types cannot be compared using \(op)"
+				ctx.errnode = self
+				return nil
+			}
+
 			if lt == rt {
 				self.typeAnn = BoolType()
 			} else {
