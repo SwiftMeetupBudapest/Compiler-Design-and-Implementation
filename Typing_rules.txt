@@ -1,0 +1,131 @@
+In this plaintext file, letters C, D, etc. stand for Gamma, Delta, etc.
+a.k.a. typing contexts.
+
+Remarks:
+	(1) DFP denotes the set of double-precision floating-point numbers.
+	(2) STR is the set of strings.
+
+
+ C |- child1 : T1, ..., C |- childN : TN
+-----------------------------------------
+   C |- program child1...childN : Void
+
+
+ C |- param : P         C |- ret : R
+-------------------------------------
+   C |- funcDecl param ret : P -> R
+
+
+ C |- param : P      C |- ret : R      C |- body : Void
+--------------------------------------------------------
+          C |- funcDef param ret body : P -> R
+
+
+ C |- child1 : T1, ..., C |- childN : TN
+-----------------------------------------
+    C |- block child1...childN : Void
+
+
+-------------------
+ C |- return: Void
+
+
+     C |- expr : T
+----------------------
+ C |- return expr : T
+
+
+ C |- cond : Bool   C |- then : T
+----------------------------------
+     C |- if cond then : Void
+
+
+ C |- cond : Bool   C |- then : T   C |- else : E
+--------------------------------------------------
+          C |- if cond then else : Void
+
+
+ C |- cond : Bool    C |- body : T
+-----------------------------------
+    C |- while cond body : Void
+
+
+      C |- expr : T
+-------------------------- (x : T) \elem C
+ C |- varDecl x expr : T;
+
+
+------------------
+ C |- true : Bool
+
+
+-------------------
+ C |- false : Bool
+
+
+-------------- n \elem Z
+ C |- n : Int
+
+
+----------------- x \elem DFP (1)
+ C |- x : Double
+
+
+----------------- x \elem STR (2)
+ C |- x : String
+
+
+------------- (x : T) \elem C
+ C |- x : T;
+
+
+ C |- a : Int    C |- b : Int
+------------------------------          (ditto for -, *, /)
+    C |- a + b : Int
+
+
+ C |- a : Double    C |- b : Double
+------------------------------------    (ditto for -, *, /)
+        C |- a + b : Double
+
+
+ C |- a : Double    C |- b : Int
+---------------------------------       (ditto for -, *, /)
+       C |- a + b : Double
+
+
+ C |- a : String    C |- b : String
+------------------------------------
+        C |- a + b : String
+
+
+ C |- a : Bool   C |- b : Bool
+-------------------------------         (ditto for ||)
+    C |- a && b : Bool
+
+
+ C |- a : T      C |- b : T
+------------------------------ T \elem { Bool, Int, String }
+      C |= a < b : Bool
+
+                                        (ditto for >, <=, >=, ==, !=)
+
+
+ C |- x : T      C |- expr : T
+------------------------------
+     C |= x = expr : Void
+
+
+ C |- expr : Bool
+-------------------
+ C |- !expr : Bool
+
+
+ C |- expr : T
+------------------- T \elem { Int, Double }     (ditto for -)
+ C |- +expr : T
+
+
+ C |- f : T -> U     C |- x : T
+--------------------------------
+         C |- f(x) : U
