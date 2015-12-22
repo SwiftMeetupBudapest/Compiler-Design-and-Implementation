@@ -1,3 +1,15 @@
+//
+// TypeAnn.swift
+//
+// SwiSwi - a tiny Swift-like language
+//
+// Created for the Budapest Swift Meetup
+// by Árpád Goretity (H2CO3)
+// on 15/12/2015
+//
+// There's no warranty whatsoever.
+//
+
 class TypeAnn {
 	init() {}
 

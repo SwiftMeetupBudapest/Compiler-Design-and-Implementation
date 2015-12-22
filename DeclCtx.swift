@@ -1,3 +1,15 @@
+//
+// DeclCtx.swift
+//
+// SwiSwi - a tiny Swift-like language
+//
+// Created for the Budapest Swift Meetup
+// by Árpád Goretity (H2CO3)
+// on 21/12/2015
+//
+// There's no warranty whatsoever.
+//
+
 struct DeclCtx {
 	var globals: [String:TypeAnn]  // global variables
 	var scopes: [[String:TypeAnn]] // local variables at function scope
