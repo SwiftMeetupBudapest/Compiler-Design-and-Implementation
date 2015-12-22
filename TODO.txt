@@ -1,0 +1,19 @@
+* Refactor BinaryOpAST.inferType() into multiple methods
+	(rather than a big switch-case)
+
+* TypeAnn classes:
+	* Rewrite using algebraic sum types ('enum's)
+	* Or, at least refactor primitive types into
+	  one class and a string identifying the type
+
+* Add more test cases (primarily, incorrect code
+	that should fail to compile due to semantic errors)
+	in order to test the semantic analyzer
+
+* Add a document describing the formal typing rules of
+	the target language (just like the grammar is given
+	in BNF in BNF_grammar.txt)
+
+* Maybe maintain two branches of the code: one for
+	continuous development, another (with some parts
+	of the code missing) for use during meetup events

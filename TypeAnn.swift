@@ -113,7 +113,7 @@ func TypeFromTypeName(oname: String?) -> TypeAnn {
 	switch name {
 	case "Void":   return VoidType()
 	case "Bool":   return BoolType()
-	case "Int":	   return IntType()
+	case "Int":    return IntType()
 	case "Double": return DoubleType()
 	case "String": return StringType()
 	default:
