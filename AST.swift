@@ -126,9 +126,12 @@ class FuncDefAST : FuncDeclAST {
 	}
 
 	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
+		// add outermost pseudo-scope for parameters
+		ctx.scopes.append([:])
+
 		// If we have a parameter, we add its declaration.
 		if let pname = self.paramName, ptype = self.paramType {
-			ctx.scopes.append([pname:TypeFromTypeName(ptype)])
+			ctx.scopes[0][pname] = TypeFromTypeName(ptype)
 		}
 
 		let ownType = super.inferType(&ctx) as! FunctionType
@@ -138,6 +141,9 @@ class FuncDefAST : FuncDeclAST {
 			return nil
 		}
 		ctx.functionRetType = nil
+
+		// pop parameter pseudo-scope
+		ctx.scopes.removeLast()
 
 		return ownType
 	}
