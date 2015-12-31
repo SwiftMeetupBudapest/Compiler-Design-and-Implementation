@@ -24,6 +24,13 @@ class TypeAnn {
 	func isNumeric() -> Bool {
 		return false
 	}
+
+	// For code generation.
+	// Returns the LLVM representation of the type.
+	func llvmType() -> LLVMTypeRef {
+		assert(false, "cannot represent generic TypeAnn in LLVM")
+		return nil
+	}
 }
 
 final class VoidType : TypeAnn {
@@ -34,6 +41,10 @@ final class VoidType : TypeAnn {
 	override func equals(rhs: TypeAnn) -> Bool {
 		return rhs is VoidType // assumes final
 	}
+
+	override func llvmType() -> LLVMTypeRef {
+		return LLVMVoidType()
+	}
 }
 
 final class BoolType : TypeAnn {
@@ -43,6 +54,10 @@ final class BoolType : TypeAnn {
 
 	override func equals(rhs: TypeAnn) -> Bool {
 		return rhs is BoolType // assumes final
+	}
+
+	override func llvmType() -> LLVMTypeRef {
+		return LLVMInt1Type()
 	}
 }
 
@@ -58,6 +73,10 @@ final class IntType : TypeAnn {
 	override func isNumeric() -> Bool {
 		return true
 	}
+
+	override func llvmType() -> LLVMTypeRef {
+		return LLVMInt64Type()
+	}
 }
 
 final class DoubleType : TypeAnn {
@@ -72,6 +91,10 @@ final class DoubleType : TypeAnn {
 	override func isNumeric() -> Bool {
 		return true
 	}
+
+	override func llvmType() -> LLVMTypeRef {
+		return LLVMDoubleType()
+	}
 }
 
 final class StringType : TypeAnn {
@@ -81,6 +104,20 @@ final class StringType : TypeAnn {
 
 	override func equals(rhs: TypeAnn) -> Bool {
 		return rhs is StringType // assumes final
+	}
+
+	// Strings are represented by:
+	// struct string {
+	//	 char *begin;
+	//	 uint64_t length;
+	// }
+	override func llvmType() -> LLVMTypeRef {
+		var elems = [
+			LLVMPointerType(LLVMInt8Type(), 0), // char * in addr. space #0
+			LLVMInt64Type()
+		]
+		// 0: not packed
+		return LLVMStructType(&elems[0], UInt32(elems.count), 0)
 	}
 }
 
@@ -105,6 +142,22 @@ class FunctionType : TypeAnn {
 		}
 
 		return argType.equals(rt.argType) && retType.equals(rt.retType)
+	}
+
+	override func llvmType() -> LLVMTypeRef {
+		// a function with a 'Void' argument is a
+		// special case: it means '0 arguments'.
+		var args: [LLVMTypeRef] = []
+		if self.argType != VoidType() {
+			args.append(self.argType.llvmType())
+		}
+
+		return LLVMFunctionType(
+			self.retType.llvmType(),
+			&args,
+			UInt32(args.count),
+			0 // 0: not variadic
+		)
 	}
 }
 

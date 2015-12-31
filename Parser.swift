@@ -64,7 +64,7 @@ class Parser {
 		return nil
 	}
 
-	func parse() -> AST? {
+	func parse() -> ProgramAST? {
 		return parseProgram()
 	}
 
@@ -73,7 +73,7 @@ class Parser {
 	//
 
 	// program := (funcDecl | funcDef) *
-	func parseProgram() -> AST? {
+	func parseProgram() -> ProgramAST? {
 		var children: [AST] = []
 
 		while !eof() {
@@ -315,7 +315,7 @@ class Parser {
 	}
 
 	// block := '{' (statement)* '}'
-	func parseBlock() -> AST? {
+	func parseBlock() -> BlockAST? {
 		guard let lbrace = acceptTokenString("{") else {
 			error = "expected '{' in block statement"
 			return nil
@@ -425,7 +425,7 @@ class Parser {
 
 		return ast
 	}
-	
+
 	// call := postfix '(' expr? ')'
 	func parseFunctionCall(token: Token, _ function: AST) -> AST? {
 		// function call with no parameters
@@ -470,7 +470,7 @@ class Parser {
 				error = "\(word.value) is a keyword, it can't be a name"
 				return nil
 			}
-			
+
 			return IdentifierAST(word.location, word.value)
 		}
 
@@ -525,7 +525,7 @@ class Parser {
 
 		return lhs
 	}
-	
+
 	func parseBinaryOpRightAssoc(tokens: [String], _ subexpr: () -> AST?) -> AST? {
 		guard let lhs = subexpr() else {
 			return nil
@@ -541,7 +541,7 @@ class Parser {
 
 		return lhs
 	}
-	
+
 	func parseBinaryOpNoAssoc(tokens: [String], _ subexpr: () -> AST?) -> AST? {
 		guard let lhs = subexpr() else {
 			return nil

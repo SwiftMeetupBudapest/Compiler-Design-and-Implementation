@@ -20,3 +20,13 @@ extension String {
 		return self
 	}
 }
+
+extension Dictionary {
+	init(keys: [Key], values: [Value]) {
+		self.init()
+		assert(keys.count == values.count, "there must be exactly as many keys as values")
+		for i in 0..<keys.count {
+			self[keys[i]] = values[i]
+		}
+	}
+}

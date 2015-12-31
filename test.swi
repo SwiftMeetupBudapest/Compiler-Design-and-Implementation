@@ -1,9 +1,43 @@
 func intToString(n: Int) -> String;
 func doubleToString(x: Double) -> String;
-func abs(x: Double) -> Double;
+func stringToInt(s: String) -> Int;
+func stringToDouble(s: String) -> Double;
+
+func fabs(x: Double) -> Double;
+func sin(x: Double) -> Double;
+func cos(x: Double) -> Double;
+func exp(x: Double) -> Double;
+func log(x: Double) -> Double;
+
 func print(str: String);
+func getLine() -> String;
+func panic(str: String);
+
+func boolToString(b: Bool) -> String {
+	if b {
+		return "true";
+	} else {
+		return "false";
+	}
+}
+
+func printInt(n: Int) {
+	print(intToString(n));
+}
+
+func printDouble(x: Double) {
+	print(doubleToString(x));
+}
+
+func printBool(b: Bool) {
+	print(boolToString(b));
+}
 
 func fib(x: Int) -> Int {
+	if x < 0 {
+		panic("negative argument to fib()");
+	}
+
 	if x < 2 {
 		return 1;
 	} else {
@@ -19,18 +53,72 @@ func babylonianSqrt(x: Double) -> Double {
 	var eps = 0.00000001;
 	var y = 1.0 / x;
 
-	while abs(y - x / y) > eps {
-		y = (y + x / y) / 2;
+	while fabs(y - x / y) > eps {
+		y = (y + x / y) / 2.0;
 	}
 
 	return y;
 }
 
-func swimain() {
-	var k = 10;
+func trueStuff() -> Bool {
+	print("returning true");
+	return true;
+}
+
+func falseStuff() -> Bool {
+	print("returning false");
+	return false;
+}
+
+func demoShortCircuit() {
+	print("false || false");
+	printBool(falseStuff() || falseStuff());
+	print("");
+
+	print("false || true");
+	printBool(falseStuff() || trueStuff());
+	print("");
+
+	print("true || false");
+	printBool(trueStuff() || falseStuff());
+	print("");
+
+	print("true || true");
+	printBool(trueStuff() || trueStuff());
+	print("");
+
+	print("false && false");
+	printBool(falseStuff() && falseStuff());
+	print("");
+
+	print("false && true");
+	printBool(falseStuff() && trueStuff());
+	print("");
+
+	print("true && false");
+	printBool(trueStuff() && falseStuff());
+	print("");
+
+	print("true && true");
+	printBool(trueStuff() && trueStuff());
+	print("");
+}
+
+func swimain(k: Int) {
 	var fibK = fib(k);
 	var fibKStr = intToString(fibK);
 	print(fibKStr);
 
-	print(doubleToString(babylonianSqrt(10 + 15.0)));
+	demoShortCircuit();
+
+	print("type a number:");
+	var s = getLine();
+	var d = stringToDouble(s);
+	var rad = d / 180.0 * 3.1415927;
+
+	printDouble(babylonianSqrt(d));
+	printDouble(log(d));
+
+	printDouble(sin(rad));
+	printDouble(cos(rad));
 }

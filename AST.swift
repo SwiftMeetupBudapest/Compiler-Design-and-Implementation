@@ -30,8 +30,7 @@ class AST {
 	}
 
 	func inferType(inout ctx: DeclCtx) -> TypeAnn? {
-		ctx.errmsg = "cannot infer type of generic AST"
-		ctx.errnode = self
+		assert(false, "cannot infer type of abstract AST node")
 		return nil
 	}
 }
@@ -96,6 +95,12 @@ class FuncDeclAST : AST {
 	}
 
 	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
+		if ctx.globals[self.name] != nil {
+			ctx.errmsg = "redeclaration of function \(self.name)"
+			ctx.errnode = self
+			return nil
+		}
+
 		let ptype = TypeFromTypeName(paramType)
 		let rtype = TypeFromTypeName(returnType)
 		self.typeAnn = FunctionType(ptype, rtype)
@@ -105,7 +110,7 @@ class FuncDeclAST : AST {
 }
 
 class FuncDefAST : FuncDeclAST {
-	let body: AST
+	let body: BlockAST
 
 	init(
 		 _ loc: SrcLoc,
@@ -113,7 +118,7 @@ class FuncDefAST : FuncDeclAST {
 		 _ paramName: String?,
 		 _ paramType: String?,
 		 _ returnType: String?,
-		 _ body: AST
+		 _ body: BlockAST
 	) {
 		self.body = body
 		super.init(loc, name, paramName, paramType, returnType)
@@ -126,26 +131,28 @@ class FuncDefAST : FuncDeclAST {
 	}
 
 	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
-		// add outermost pseudo-scope for parameters
+		// push outermost pseudo-scope for parameters
 		ctx.scopes.append([:])
+
+		// pop parameter pseudo-scope on exit
+		defer {
+			ctx.scopes.removeLast()
+			assert(ctx.scopes.count == 0, "stray scope on scope stack")
+		}
 
 		// If we have a parameter, we add its declaration.
 		if let pname = self.paramName, ptype = self.paramType {
 			ctx.scopes[0][pname] = TypeFromTypeName(ptype)
 		}
 
-		let ownType = super.inferType(&ctx) as! FunctionType
-
-		ctx.functionRetType = ownType.retType
-		if self.body.inferType(&ctx) == nil {
+		guard let ownType = super.inferType(&ctx) as? FunctionType else {
 			return nil
 		}
-		ctx.functionRetType = nil
 
-		// pop parameter pseudo-scope
-		ctx.scopes.removeLast()
+		ctx.functionRetType = ownType.retType
+		defer { ctx.functionRetType = nil }
 
-		return ownType
+		return self.body.inferType(&ctx) != nil ? ownType : nil
 	}
 }
 
@@ -167,6 +174,8 @@ class BlockAST : AST {
 	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
 		// push scope
 		ctx.scopes.append([:])
+		// pop scope on exit
+		defer { ctx.scopes.removeLast() }
 
 		for child in children {
 			if child.inferType(&ctx) == nil {
@@ -174,9 +183,6 @@ class BlockAST : AST {
 			}
 		}
 
-		// pop scope
-		ctx.scopes.removeLast()
-		
 		self.typeAnn = VoidType()
 		return self.typeAnn
 	}
@@ -189,7 +195,7 @@ class ReturnAST : AST {
 		expression = nil
 		super.init(loc)
 	}
-	
+
 	init(_ loc: SrcLoc, _ expression: AST) {
 		self.expression = expression
 		super.init(loc)
@@ -219,7 +225,7 @@ class ReturnAST : AST {
 			return nil
 		}
 
-		return self.typeAnn!
+		return self.typeAnn
 	}
 }
 
@@ -270,7 +276,7 @@ class IfThenElseAST : AST {
 				return nil
 			}
 		}
-		
+
 		self.typeAnn = VoidType()
 		return self.typeAnn
 	}
@@ -294,7 +300,7 @@ class WhileLoopAST : AST {
 		s += body.toString(level + 2).trimTail() + "\n"
 		return s
 	}
-	
+
 	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
 		guard let condType = self.condition.inferType(&ctx) else {
 			return nil
@@ -334,13 +340,29 @@ class VarDeclAST : AST {
 	}
 
 	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
-		if let t = self.initExpr.inferType(&ctx) {
-			// Array.last is read-only...
-			self.typeAnn = t
-			ctx.scopes[ctx.scopes.count - 1][self.name] = t
-			return t
+		let nm = self.name
+
+		// check for erroneous re-declaration and/or shadowing
+		if ctx.scopes.map({ $0.contains({ $0.0 == nm }) }).contains(true) {
+			ctx.errmsg = "re-declaration of variable: \(nm)"
+			ctx.errnode = self
+			return nil
 		}
-		return nil
+
+		guard let t = self.initExpr.inferType(&ctx) else {
+			return nil
+		}
+
+		if t is VoidType {
+			ctx.errmsg = "cannot create variable of void type"
+			ctx.errnode = self.initExpr
+			return nil
+		}
+
+		// Array.last is read-only...
+		self.typeAnn = t
+		ctx.scopes[ctx.scopes.count - 1][nm] = t
+		return t
 	}
 }
 
@@ -362,10 +384,10 @@ class IntegerLiteralAST : AST {
 
 	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
 		self.typeAnn = IntType()
-		return self.typeAnn!
+		return self.typeAnn
 	}
 }
-	
+
 class FloatingLiteralAST : AST {
 	let value: Double
 
@@ -377,16 +399,16 @@ class FloatingLiteralAST : AST {
 	override func toString(level: Int) -> String {
 		return indent(level) + "Floating \(value) (type = \(self.typeAnn?.toString()))\n"
 	}
-	
-	override func inferType(inout ctx: DeclCtx) -> TypeAnn {
+
+	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
 		self.typeAnn = DoubleType()
-		return self.typeAnn!
+		return self.typeAnn
 	}
 }
 
 class StringLiteralAST : AST {
 	let value: String
-	
+
 	init(_ loc: SrcLoc, _ value: String) {
 		self.value = value
 		super.init(loc)
@@ -398,13 +420,13 @@ class StringLiteralAST : AST {
 
 	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
 		self.typeAnn = StringType()
-		return self.typeAnn!
+		return self.typeAnn
 	}
 }
-			  
+
 class IdentifierAST : AST {
 	let name: String
-	
+
 	init(_ loc: SrcLoc, _ name: String) {
 		self.name = name
 		super.init(loc)
@@ -460,9 +482,15 @@ class BinaryOpAST : AST {
 
 		switch op {
 		case "=":
-			if !(lhs is IdentifierAST) {
+			guard let ident = lhs as? IdentifierAST else {
 				ctx.errmsg = "LHS of assignment must be a variable"
 				ctx.errnode = self
+				return nil
+			}
+
+			if ctx.globals[ident.name] != nil {
+				ctx.errmsg = "Global \(ident.name) cannot be assigned to"
+				ctx.errnode = ident
 				return nil
 			}
 
@@ -494,12 +522,10 @@ class BinaryOpAST : AST {
 			}
 			fallthrough
 		case "-", "*", "/":
-			if lt.isNumeric() && rt.isNumeric() {
-				if lt == IntType() && rt == IntType() {
-					self.typeAnn = IntType()
-				} else {
-					self.typeAnn = DoubleType()
-				}
+			if lt is IntType && rt is IntType {
+				self.typeAnn = IntType()
+			} else if lt is DoubleType && rt is DoubleType {
+				self.typeAnn = DoubleType()
 			} else {
 				ctx.errmsg = "\(op) cannot be applied to values of type \(lt.toString()) and \(rt.toString())"
 				ctx.errnode = self
@@ -518,8 +544,8 @@ class BinaryOpAST : AST {
 			ctx.errnode = self
 			return nil
 		}
-		
-		return self.typeAnn!
+
+		return self.typeAnn
 	}
 }
 
@@ -569,7 +595,7 @@ class PrefixOpAST : AST {
 			return nil
 		}
 
-		return self.typeAnn!
+		return self.typeAnn
 	}
 }
 
@@ -619,12 +645,12 @@ class FuncCallAST : AST {
 		var s = indent(level) + "Funcion Call (type = \(self.typeAnn?.toString()))\n"
 		s += indent(level + 1) + "Function:\n"
 		s += function.toString(level + 2).trimTail() + "\n"
-		
+
 		if parameter != nil {
 			s += indent(level + 1) + "Parameter:\n"
 			s += parameter!.toString(level + 2).trimTail() + "\n"
 		}
-		
+
 		return s
 	}
 
@@ -643,7 +669,7 @@ class FuncCallAST : AST {
 		guard let maybeFnType = function.inferType(&ctx) else {
 			return nil
 		}
-		
+
 		guard let fnType = maybeFnType as? FunctionType else {
 			ctx.errmsg = "callee is of non-function type \(maybeFnType.toString())"
 			ctx.errnode = function
@@ -659,6 +685,6 @@ class FuncCallAST : AST {
 			return nil
 		}
 
-		return self.typeAnn!
+		return self.typeAnn
 	}
 }
