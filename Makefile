@@ -9,6 +9,7 @@ all:
 	util.swift \
 	main.swift \
 	-o swiswi \
+	-g \
 	-O \
 	-I /usr/local/include/ \
 	-L /usr/local/lib \

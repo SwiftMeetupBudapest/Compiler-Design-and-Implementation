@@ -124,10 +124,18 @@ class Lexer {
 	// Returns next character at index 'cursor + offset' if within bounds,
 	// or nil if reached end-of-input.
 	func lookahead(offset: Int) -> Character? {
-		if offset < cursor.distanceTo(src.endIndex) {
-			return src[cursor.advancedBy(offset)]
+		// cursor.distanceTo(src.endIndex) is O(n), so
+		// checking the available distance for every lexeme
+		// is accidenally quadratic. Therefore we need to speculate.
+		var nextIndex = cursor
+		for _ in 0...offset {
+			if nextIndex == src.endIndex {
+				return nil
+			}
+			nextIndex = nextIndex.successor()
 		}
-		return nil
+
+		return src[nextIndex.predecessor()]
 	}
 
 	// gets next character if any, or nil if reached end-of-input.
@@ -136,8 +144,18 @@ class Lexer {
 	}
 
 	func lookaheadUpTo(length: Int) -> String {
-		let actualLength = min(length, cursor.distanceTo(src.endIndex))
-		let end = cursor.advancedBy(actualLength)
+		// again, cursor.distanceTo(src.endIndex) is linear, so
+		// calling it in a lookahead function is quadratic.
+		// Again, we try to speculate.
+		var end = cursor
+
+		for _ in 0..<length {
+			if end == src.endIndex {
+				break
+			}
+			end = end.successor()
+		}
+
 		return src.substringWithRange(Range(start: cursor, end: end))
 	}
 
@@ -275,6 +293,8 @@ class Lexer {
 		assert(isPunct())
 		let loc = location
 
+		// XXX: Order matters! For operators that share a prefix,
+		// the longer one must come first.
 		let ops = [
 			"++", "+", "--", "->", "-", "*", "/", ":", ".",
 			",", ";", "(", ")", "{", "}", "[", "]",

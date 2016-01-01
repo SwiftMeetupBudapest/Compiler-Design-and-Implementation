@@ -1,5 +1,5 @@
 //
-// AST.swift
+// CodeGen.swift
 //
 // SwiSwi - a tiny Swift-like language
 //
@@ -227,7 +227,7 @@ class CodeGen {
 		// for use in the PHI node.
 		let lhsBBLast  = LLVMGetInsertBlock(self.builder)
 		let rhsBBFirst = LLVMAppendBasicBlock(self.functions.last!, "")
-		let endBB	   = LLVMAppendBasicBlock(self.functions.last!, "")
+		let endBB      = LLVMAppendBasicBlock(self.functions.last!, "")
 
 		// Generate the short-circuiting conditional jump:
 		// * if LHS is false, then LHS && anything is also false
