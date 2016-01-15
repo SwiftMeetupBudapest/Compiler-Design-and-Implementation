@@ -129,23 +129,7 @@ class CodeGen {
 		return LLVMBuildCall(self.builder, fn, &args, CUnsignedInt(args.count), "str.obj")
 	}
 
-	func codegenIdentifier(ast: IdentifierAST) -> LLVMValueRef {
-		switch ast.name {
-		case "false":
-			return LLVMConstInt(LLVMInt1Type(), 0, 0)
-		case "true":
-			return LLVMConstInt(LLVMInt1Type(), 1, 0)
-		default:
-			// see if we are referencing a local variable
-			if let mem = self.getLocal(ast.name) {
-				return LLVMBuildLoad(self.builder, mem, "")
-			}
-
-			// otherwise it should a be (global) function
-			// XXX: TODO: maybe assert that this returns non-nil
-			return LLVMGetNamedFunction(self.module, ast.name)
-		}
-	}
+	// func codegenIdentifier(ast: IdentifierAST) -> LLVMValueRef
 
 	// helpers for codegenBinaryOp
 	func codegenIntComparison(
@@ -216,61 +200,9 @@ class CodeGen {
 		return nil
 	}
 
-	func codegenShortCircuitLogicalOp(ast: BinaryOpAST) -> LLVMValueRef {
-		// First, we generate code for the left-hand side...
-		let lhsVal = self.codegenExpr(ast.lhs)
-		assert(lhsVal != nil)
+	// func codegenShortCircuitLogicalOp(ast: BinaryOpAST) -> LLVMValueRef
 
-		// ...and only then do we get the current basic block. That's
-		// because the LHS may emit additional basic blocks, and this
-		// way we can make sure that we obtain the immediate predecessor
-		// for use in the PHI node.
-		let lhsBBLast  = LLVMGetInsertBlock(self.builder)
-		let rhsBBFirst = LLVMAppendBasicBlock(self.functions.last!, "")
-		let endBB      = LLVMAppendBasicBlock(self.functions.last!, "")
-
-		// Generate the short-circuiting conditional jump:
-		// * if LHS is false, then LHS && anything is also false
-		// * if LHS is true,  then LHS || anything is also true
-		switch ast.op {
-		case "&&":
-			LLVMBuildCondBr(self.builder, lhsVal, rhsBBFirst, endBB)
-		case "||":
-			LLVMBuildCondBr(self.builder, lhsVal, endBB, rhsBBFirst)
-		default:
-			assert(false, "unimplemented logical operator: \(ast.op)")
-		}
-
-		// Generate code for the RHS
-		LLVMPositionBuilderAtEnd(self.builder, rhsBBFirst)
-		let rhsVal = self.codegenExpr(ast.rhs)
-		assert(rhsVal != nil)
-		let rhsBBLast = LLVMGetInsertBlock(self.builder)
-		LLVMBuildBr(self.builder, endBB)
-
-		// Finally, construct the PHI node.
-		var vals = [ lhsVal, rhsVal ]
-		var blocks = [ lhsBBLast, rhsBBLast ]
-
-		LLVMPositionBuilderAtEnd(self.builder, endBB)
-		let phi = LLVMBuildPhi(self.builder, ast.typeAnn!.llvmType(), "")
-		LLVMAddIncoming(phi, &vals, &blocks, CUnsignedInt(vals.count))
-
-		return phi
-	}
-
-	func codegenAssignment(ast: BinaryOpAST) -> LLVMValueRef {
-		let lhs = ast.lhs as! IdentifierAST
-		let mem = self.getLocal(lhs.name)!
-		let rhs = self.codegenExpr(ast.rhs)
-
-		assert(rhs != nil)
-		assert(ast.typeAnn! is VoidType)
-
-		// XXX: what's the return value of the store instruction?
-		return LLVMBuildStore(self.builder, rhs, mem)
-		// return LLVMConstNull(ast.typeAnn!.llvmType())
-	}
+	// func codegenAssignment(ast: BinaryOpAST) -> LLVMValueRef
 
 	func codegenBinaryOp(ast: BinaryOpAST) -> LLVMValueRef {
 		let logicalOps = [ "&&", "||" ]
@@ -385,62 +317,7 @@ class CodeGen {
 		return (fn, tp)
 	}
 
-	func codegenFuncDef(ast: FuncDefAST) {
-		// Create function declaration and transform it into
-		// a definition by adding an entry point basic block
-		let (fn, tp) = self.codegenFuncDecl(ast)
-
-		let bb = LLVMAppendBasicBlock(fn, "entry")
-		LLVMPositionBuilderAtEnd(self.builder, bb)
-
-		// Create outermost pseudo-scope for function argument
-		self.scopes.append([:])
-
-		// register ourselves as the innermost function being compiled
-		self.functions.append(fn)
-
-		// pop argument pseudo-scope and current function on exit
-		defer {
-			// XXX: TODO: clean up arguments' pseudo-scope (call dtors)
-			self.scopes.removeLast()
-			assert(self.scopes.count == 0, "stray scope on scope stack")
-			self.functions.removeLast()
-		}
-
-		// if we have an argument, 'declare' it.
-		// This is done via an additional alloca and a store into memory,
-		// because this way we can handle function arguments uniformly,
-		// as if they were local variables (which they conceptually are)
-		if let argName = ast.paramName {
-			let ptr = LLVMBuildAlloca(
-				self.builder,
-				tp.argType.llvmType(),
-				argName
-			)
-			// 0th argument
-			LLVMBuildStore(self.builder, LLVMGetParam(fn, 0), ptr)
-			// 0th (outermost) scope
-			scopes[0][argName] = ptr
-		}
-
-		// codegen function body
-		self.codegenStmt(ast.body)
-
-		// If there's no return at the end of the function, then:
-		// TODO: 'has the function returned a value if necessary?'
-		// IS NOT equivalent to 'is the last statement a return?'!
-		// Full control flow analysis is necessary for enumerating
-		// and checking returns from all possible code paths.
-		// For now, we just assume that:
-		// 1. value-returning functions always return a value
-		// 2. void-returning functions have no redundant 'return' @ the end
-		// XXX: TODO: don't assume, perform proper CFA
-		if tp.retType is VoidType {
-			LLVMBuildRetVoid(self.builder)
-		} else {
-			LLVMBuildUnreachable(self.builder)
-		}
-	}
+	// func codegenFuncDef(ast: FuncDefAST)
 
 	func codegenBlock(ast: BlockAST) {
 		scopes.append([:])
@@ -497,55 +374,9 @@ class CodeGen {
 		LLVMPositionBuilderAtEnd(self.builder, bbEndIf)
 	}
 
-	func codegenWhileLoop(ast: WhileLoopAST) {
-		let bbCond = LLVMAppendBasicBlock(self.functions.last!, "cond")
-		let bbBody = LLVMAppendBasicBlock(self.functions.last!, "body")
-		let bbExit = LLVMAppendBasicBlock(self.functions.last!, "endwhile")
+	// func codegenWhileLoop(ast: WhileLoopAST)
 
-		// Generate condition in a fresh basic block,
-		// as we will need to jump back to it.
-		LLVMBuildBr(self.builder, bbCond)
-
-		// Generate condition and conditional branch
-		LLVMPositionBuilderAtEnd(self.builder, bbCond)
-		let condVal = self.codegenExpr(ast.condition)
-		assert(condVal != nil)
-
-		LLVMBuildCondBr(self.builder, condVal, bbBody, bbExit)
-
-		// Generate body
-		LLVMPositionBuilderAtEnd(self.builder, bbBody)
-		self.codegenStmt(ast.body)
-
-		// Generate unconditional jump back to condition
-		LLVMBuildBr(self.builder, bbCond)
-
-		// Continue after merge point
-		LLVMPositionBuilderAtEnd(self.builder, bbExit)
-	}
-
-	func codegenVarDecl(ast: VarDeclAST) {
-		// This should call the constructor of a non-trivially
-		// initialized type, so in theory we shouldn't need to
-		// worry about that separately.
-		// XXX: TODO: this will definitely change if we ever
-		// make the initializer expression optional!
-		let initVal = self.codegenExpr(ast.initExpr)
-		assert(initVal != nil)
-
-		// allocate storage
-		let mem = LLVMBuildAlloca(
-			self.builder,
-			ast.typeAnn!.llvmType(),
-			ast.name
-		)
-
-		// Store initializer value
-		LLVMBuildStore(self.builder, initVal, mem)
-
-		// add the allocated pointer to the symbol table
-		self.scopes[self.scopes.count - 1][ast.name] = mem
-	}
+	// func codegenVarDecl(ast: VarDeclAST)
 
 	//
 	// Public API: the codegen function for the top-level program
