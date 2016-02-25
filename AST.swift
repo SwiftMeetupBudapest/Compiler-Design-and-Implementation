@@ -204,7 +204,7 @@ class BlockAST : AST {
 }
 
 class ReturnAST : AST {
-	let expression: AST?
+	var expression: AST?
 
 	override init(_ loc: SrcLoc) {
 		expression = nil
@@ -245,7 +245,7 @@ class ReturnAST : AST {
 }
 
 class IfThenElseAST : AST {
-	let condition: AST
+	var condition: AST
 	var thenBranch: BlockAST
 	var elseBranch: AST?
 
@@ -298,7 +298,7 @@ class IfThenElseAST : AST {
 }
 
 class WhileLoopAST : AST {
-	let condition: AST
+	var condition: AST
 	var body: BlockAST
 
 	init(_ loc: SrcLoc, _ condition: AST, _ body: BlockAST) {
@@ -338,7 +338,7 @@ class WhileLoopAST : AST {
 
 class VarDeclAST : AST {
 	let name: String
-	let initExpr: AST
+	var initExpr: AST
 
 	init(_ loc: SrcLoc, _ name: String, _ initExpr: AST) {
 		self.name = name
@@ -472,8 +472,8 @@ class IdentifierAST : AST {
 
 class BinaryOpAST : AST {
 	let op: String
-	let lhs: AST
-	let rhs: AST
+	var lhs: AST
+	var rhs: AST
 
 	init(_ loc: SrcLoc, _ op: String, _ lhs: AST, _ rhs: AST) {
 		self.op = op
@@ -566,7 +566,7 @@ class BinaryOpAST : AST {
 
 class PrefixOpAST : AST {
 	let op: String
-	let child: AST
+	var child: AST
 
 	init(_ loc: SrcLoc, _ op: String, _ child: AST) {
 		self.op = op
@@ -641,8 +641,8 @@ class SubscriptAST : AST {
 }
 
 class FuncCallAST : AST {
-	let function: AST
-	let parameter: AST?
+	var function: AST
+	var parameter: AST?
 
 	init(_ loc: SrcLoc, _ function: AST) {
 		self.function = function

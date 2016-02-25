@@ -1,0 +1,35 @@
+func print(str: String);
+
+func boolToString(b: Bool) -> String {
+	if b {
+		return "true";
+	} else {
+		return "false";
+	}
+}
+
+func swimain(n: Int) {
+	if !(false || true) {
+		print("this should be eliminated");
+	} else {
+		print("this should be shown");
+	}
+
+	if false && true {
+		print("nothing to see here");
+	}
+
+	if true || false {
+		print("this is always here, no jumps please!");
+	}
+
+
+	while !(false || true || false) {
+		print("but not this one");
+	}
+
+	var t = !!!(false || true && !true);
+	var falseString = boolToString(!!(!true && !false));
+	print(boolToString(t));
+	print(falseString);
+}
