@@ -32,3 +32,8 @@ Archive
 	* [Presentation Slides](https://dl.dropboxusercontent.com/u/4960980/Swift_Compiler_Design_3_final.pdf)
 	* [Code](https://dl.dropboxusercontent.com/u/4960980/SwiSwi_2015_12_16_jav.zip)
 
+* Part 4: Low-level Code Generation - lowering to LLVM IR
+	* [Event Page](http://www.meetup.com/swiftmeetup/events/227868642/)
+	* [Presentation Slides (English)](https://dl.dropboxusercontent.com/u/4960980/Swift_Meetup_Compiler_pt4_CodeGen.pdf)
+	* [Presentation Screencast (Hungarian)](https://www.youtube.com/watch?v=wVN_0WDsBAk)
+	* [Live Coding Screencast (Hungarian and English)](https://www.youtube.com/watch?v=vejnICDjQks)
