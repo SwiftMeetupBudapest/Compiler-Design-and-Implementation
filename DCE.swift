@@ -1,3 +1,15 @@
+//
+// DCE.swift - AST-level Dead Code Elimination
+//
+// SwiSwi - a tiny Swift-like language
+//
+// Created for the Budapest Swift Meetup
+// by Árpád Goretity (H2CO3)
+// on 23/02/2016
+//
+// There's no warranty whatsoever.
+//
+
 func performDCEIfThenElse(ast: IfThenElseAST) -> AST {
 	if let cond = ast.condition as? IdentifierAST {
 		switch cond.name {

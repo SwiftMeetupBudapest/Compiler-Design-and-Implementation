@@ -1,3 +1,15 @@
+//
+// ConstProp.swift - AST-level Constant Propagation
+//
+// SwiSwi - a tiny Swift-like language
+//
+// Created for the Budapest Swift Meetup
+// by Árpád Goretity (H2CO3)
+// on 23/02/2016
+//
+// There's no warranty whatsoever.
+//
+
 // If the AST represents a Boolean literal, return its value.
 // Otherwise, return nil.
 func boolLiteralValue(ast: AST) -> Bool? {
