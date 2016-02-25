@@ -11,31 +11,7 @@
 //
 
 func performDCEIfThenElse(ast: IfThenElseAST) -> AST {
-	if let cond = ast.condition as? IdentifierAST {
-		switch cond.name {
-		case "true":
-			// replace always-true 'if' by 'then' clause
-			return ast.thenBranch
-		case "false":
-			// replace always-false 'if' by 'else' clause (if any), or by an empty statement otherwise
-			if let elseBranch = ast.elseBranch {
-				return elseBranch
-			} else {
-				return EmptyStmtAST(ast.loc)
-			}
-		default:
-			break
-		}
-	}
-
-	// recurse into children for dead code
-	ast.thenBranch = performDCEBlock(ast.thenBranch)
-
-	if let elseBranch = ast.elseBranch {
-		ast.elseBranch = performDCE(elseBranch)
-	}
-
-	return ast
+	...
 }
 
 func performDCEWhileLoop(ast: WhileLoopAST) -> AST {

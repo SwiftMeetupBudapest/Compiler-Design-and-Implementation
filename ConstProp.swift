@@ -45,28 +45,7 @@ func propagatePrefixOp(ast: PrefixOpAST) -> AST {
 // true || rhs == true, false || rhs == rhs
 // and the same with the LHS
 func propagateBinaryOp(ast: BinaryOpAST) -> AST {
-	let lhs = performConstProp(ast.lhs)
-	let rhs = performConstProp(ast.rhs)
-
-	guard let bl = boolLiteralValue(lhs), br = boolLiteralValue(rhs) else {
-		// 'ast' is not a literal per se, but let's not lose track of
-		// its already-propagated subexpressions!
-		ast.lhs = lhs
-		ast.rhs = rhs
-		return ast
-	}
-
-	switch ast.op {
-	case "&&":
-		return boolLiteralAST(ast.loc, bl && br)
-	case "||":
-		return boolLiteralAST(ast.loc, bl || br)
-	default:
-		// don't know what to do, just fall back to propagation of subexpressions
-		ast.lhs = lhs
-		ast.rhs = rhs
-		return ast
-	}
+	...
 }
 
 func propagateProgram(ast: ProgramAST) -> ProgramAST {
