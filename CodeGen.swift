@@ -105,6 +105,9 @@ class CodeGen {
 			self.codegenWhileLoop(whileLoop)
 		case let varDecl as VarDeclAST:
 			self.codegenVarDecl(varDecl)
+		case let _ as EmptyStmtAST:
+			// do nothing
+			break
 		default: // wasn't a non-expression statement; assume an expression
 			self.codegenExpr(ast)
 		}

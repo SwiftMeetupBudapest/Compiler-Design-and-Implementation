@@ -42,7 +42,7 @@ func main() {
 
 	print("parse...")
 	let parser = Parser(tokens)
-	guard let ast = parser.parse() else {
+	guard var ast = parser.parse() else {
 		print(parser.error)
 		print(parser.location)
 		return
@@ -55,6 +55,12 @@ func main() {
 		print("at \(ctx.errnode!.loc)")
 		return
 	}
+
+	print("constant propagation...")
+	ast = performConstProp(ast) as! ProgramAST
+
+	print("dead code elimination...")
+	ast = performDCE(ast) as! ProgramAST
 
 	// For debugging purposes...
 	// print(ast.toString(0))

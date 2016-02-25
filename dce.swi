@@ -1,0 +1,25 @@
+func print(str: String);
+
+func swimain(n: Int) {
+	if false {
+		print("this should be eliminated");
+	} else {
+		print("this should be shown");
+	}
+
+	if false {
+		print("nothing to see here");
+	}
+
+	if true {
+		print("this is always here, no jumps please!");
+	}
+
+	while true {
+		print("this is also present");
+	}
+
+	while false {
+		print("but not this one");
+	}
+}

@@ -6,6 +6,8 @@ all:
 	TypeAnn.swift \
 	DeclCtx.swift \
 	CodeGen.swift \
+	ConstProp.swift \
+	DCE.swift \
 	util.swift \
 	main.swift \
 	-o swiswi \

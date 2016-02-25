@@ -36,7 +36,7 @@ class AST {
 }
 
 class ProgramAST : AST {
-	let children: [AST]
+	var children: [AST]
 
 	init(_ loc: SrcLoc, _ children: [AST]) {
 		self.children = children
@@ -56,6 +56,21 @@ class ProgramAST : AST {
 			}
 		}
 
+		self.typeAnn = VoidType()
+		return self.typeAnn
+	}
+}
+
+class EmptyStmtAST : AST {
+	override init(_ loc: SrcLoc) {
+		super.init(loc)
+	}
+
+	override func toString(level: Int) -> String {
+		return indent(level) + "Empty\n"
+	}
+
+	override func inferType(inout ctx: DeclCtx) -> TypeAnn? {
 		self.typeAnn = VoidType()
 		return self.typeAnn
 	}
@@ -110,7 +125,7 @@ class FuncDeclAST : AST {
 }
 
 class FuncDefAST : FuncDeclAST {
-	let body: BlockAST
+	var body: BlockAST
 
 	init(
 		 _ loc: SrcLoc,
@@ -157,7 +172,7 @@ class FuncDefAST : FuncDeclAST {
 }
 
 class BlockAST : AST {
-	let children: [AST]
+	var children: [AST]
 
 	init(_ loc: SrcLoc, _ children: [AST]) {
 		self.children = children
@@ -231,10 +246,10 @@ class ReturnAST : AST {
 
 class IfThenElseAST : AST {
 	let condition: AST
-	let thenBranch: AST
-	let elseBranch: AST?
+	var thenBranch: BlockAST
+	var elseBranch: AST?
 
-	init(_ loc: SrcLoc, _ condition: AST, _ thenBranch: AST, _ elseBranch: AST?) {
+	init(_ loc: SrcLoc, _ condition: AST, _ thenBranch: BlockAST, _ elseBranch: AST?) {
 		self.condition = condition
 		self.thenBranch = thenBranch
 		self.elseBranch = elseBranch
@@ -284,9 +299,9 @@ class IfThenElseAST : AST {
 
 class WhileLoopAST : AST {
 	let condition: AST
-	let body: AST
+	var body: BlockAST
 
-	init(_ loc: SrcLoc, _ condition: AST, _ body: AST) {
+	init(_ loc: SrcLoc, _ condition: AST, _ body: BlockAST) {
 		self.condition = condition
 		self.body = body
 		super.init(loc)
