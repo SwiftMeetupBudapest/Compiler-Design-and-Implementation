@@ -37,3 +37,10 @@ Archive
 	* [Presentation Slides (English)](https://dl.dropboxusercontent.com/u/4960980/Swift_Meetup_Compiler_pt4_CodeGen.pdf)
 	* [Presentation Screencast (Hungarian)](https://www.youtube.com/watch?v=wVN_0WDsBAk)
 	* [Live Coding Screencast (Hungarian and English)](https://www.youtube.com/watch?v=vejnICDjQks)
+
+* Part 5: Optimization
+	* [Event Page](http://www.meetup.com/swiftmeetup/events/228342832/)
+	* Presentation Slides (English):
+	  * [PDF](https://dl.dropboxusercontent.com/u/4960980/Swift_Compiler_Design_5.pdf)
+		* [PDF with Notes](https://dl.dropboxusercontent.com/u/4960980/Swift_Compiler_Design_5_notes.pdf)
+		* [Keynote](https://dl.dropboxusercontent.com/u/4960980/Swift_Compiler_Design_5.key)
