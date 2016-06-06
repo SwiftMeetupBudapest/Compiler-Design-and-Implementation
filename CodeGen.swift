@@ -32,7 +32,6 @@ class CodeGen {
 
 	var module: LLVMModuleRef // non-owning pointer
 	var builder: LLVMBuilderRef
-  var diBuilder: LLVMDIBuilderRef
 
 	// a stack of nested functions - the last one is the innermost.
 	// Necessary for appending basic blocks
