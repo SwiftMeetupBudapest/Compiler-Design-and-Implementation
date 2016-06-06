@@ -10,6 +10,16 @@
 // There's no warranty whatsoever.
 //
 
+struct RetAndArgTypes {
+    let returnType: LLVMTypeRef
+    let argumentTypes: [LLVMTypeRef]
+
+    init(_ returnType: LLVMTypeRef, _ argumentTypes: LLVMTypeRef...) {
+        self.returnType = returnType
+        self.argumentTypes = argumentTypes
+    }
+}
+
 class CodeGen {
 	// we don't need a 'globals' table: global variables and functions
 	// can be obtained directly from the module.
@@ -22,6 +32,7 @@ class CodeGen {
 
 	var module: LLVMModuleRef // non-owning pointer
 	var builder: LLVMBuilderRef
+  var diBuilder: LLVMDIBuilderRef
 
 	// a stack of nested functions - the last one is the innermost.
 	// Necessary for appending basic blocks
@@ -54,11 +65,33 @@ class CodeGen {
 
 	// Adds declarations of built-in runtime functions to the module
 	func declareBuiltInFunctions(module: LLVMModuleRef) {
-		var argTypes = [ LLVMPointerType(LLVMInt8Type(), 0) ]
-		let retType = StringType().llvmType()
-		let type = LLVMFunctionType(retType, &argTypes, CUnsignedInt(argTypes.count), 0)
-		LLVMAddFunction(module, "__string_literal", type)
+      func get_fntype(retType: LLVMTypeRef, _ argTypes: [LLVMTypeRef]) -> LLVMTypeRef {
+          var argTypes = argTypes
+          return LLVMFunctionType(retType, &argTypes, CUnsignedInt(argTypes.count), 0)
+      }
+
+      let builtins = [
+          "__string_literal": RetAndArgTypes(StringType().llvmType(), LLVMPointerType(LLVMInt8Type(), 0)),
+          "__string_destroy": RetAndArgTypes(LLVMVoidType(), LLVMPointerType(StringType().llvmType(), 0))
+      ]
+
+      for (name, types) in builtins {
+		      LLVMAddFunction(module, name, get_fntype(types.returnType, types.argumentTypes))
+      }
 	}
+
+  func callDestructors(scope: [String:LLVMValueRef]) {
+      // TODO: call destructors of temporaries as well
+      for (_, varvalue) in scope {
+          // Is this a (pointer to) String?
+          let type = LLVMTypeOf(varvalue)
+          if LLVMGetTypeKind(type) == LLVMPointerTypeKind && LLVMGetElementType(type) == StringType().llvmType() {
+		          let fn = LLVMGetNamedFunction(self.module, "__string_destroy")
+		          var args = [ varvalue ]
+		          LLVMBuildCall(self.builder, fn, &args, CUnsignedInt(args.count), "")
+          }
+      }
+  }
 
 	// returns: value of expression on success; null pointer (nil) on error
 	func codegenExpr(ast: AST) -> LLVMValueRef {
@@ -404,10 +437,10 @@ class CodeGen {
 
 		// pop argument pseudo-scope and current function on exit
 		defer {
-			// XXX: TODO: clean up arguments' pseudo-scope (call dtors)
-			self.scopes.removeLast()
-			assert(self.scopes.count == 0, "stray scope on scope stack")
-			self.functions.removeLast()
+        self.callDestructors(scopes.last!)
+			  self.scopes.removeLast()
+			  assert(self.scopes.count == 0, "stray scope on scope stack")
+			  self.functions.removeLast()
 		}
 
 		// if we have an argument, 'declare' it.
@@ -446,14 +479,15 @@ class CodeGen {
 	}
 
 	func codegenBlock(ast: BlockAST) {
-		scopes.append([:])
-		defer { scopes.removeLast() }
+		  scopes.append([:])
+		  defer {
+          self.callDestructors(scopes.last!)
+          scopes.removeLast()
+      }
 
-		for child in ast.children {
-			self.codegenStmt(child)
-		}
-
-		// XXX: TODO: generate cleanup code - call destructors
+		  for child in ast.children {
+			    self.codegenStmt(child)
+		  }
 	}
 
 	func codegenReturn(ast: ReturnAST) {

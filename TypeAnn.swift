@@ -98,27 +98,36 @@ final class DoubleType : TypeAnn {
 }
 
 final class StringType : TypeAnn {
-	override func toString() -> String {
-		return "String";
-	}
+    static var storedLlvmType: LLVMTypeRef? = nil
+    
+	  override func toString() -> String {
+		    return "String";
+	  }
+    
+	  override func equals(rhs: TypeAnn) -> Bool {
+		    return rhs is StringType // assumes final
+	  }
 
-	override func equals(rhs: TypeAnn) -> Bool {
-		return rhs is StringType // assumes final
-	}
-
-	// Strings are represented by:
-	// struct string {
-	//	 char *begin;
-	//	 uint64_t length;
-	// }
-	override func llvmType() -> LLVMTypeRef {
-		var elems = [
-			LLVMPointerType(LLVMInt8Type(), 0), // char * in addr. space #0
-			LLVMInt64Type()
-		]
-		// 0: not packed
-		return LLVMStructType(&elems[0], UInt32(elems.count), 0)
-	}
+	  // Strings are represented by:
+	  // struct string {
+	  //	 char *begin;
+	  //	 uint64_t length;
+	  // }
+	  override func llvmType() -> LLVMTypeRef {
+        if let storedLlvmType = StringType.storedLlvmType {
+            return storedLlvmType
+        }
+        
+		    var elems = [
+			      LLVMPointerType(LLVMInt8Type(), 0), // char * in addr. space #0
+			      LLVMInt64Type()
+		    ]
+        
+		    // 0: not packed
+		    StringType.storedLlvmType = LLVMStructType(&elems, UInt32(elems.count), 0)
+        print("Generating String type \(StringType.storedLlvmType!)")
+        return StringType.storedLlvmType!
+	  }
 }
 
 class FunctionType : TypeAnn {

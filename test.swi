@@ -121,4 +121,5 @@ func swimain(k: Int) {
 
 	printDouble(sin(rad));
 	printDouble(cos(rad));
+	var foo = "destroy me";
 }

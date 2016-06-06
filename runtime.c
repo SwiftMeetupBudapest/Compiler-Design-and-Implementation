@@ -10,6 +10,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stdint.h>
 #include <inttypes.h>
@@ -26,21 +27,26 @@ typedef struct {
 } String;
 
 String __string_literal(char *c_string) {
-	return (String){ c_string, strlen(c_string) };
+	return (String){ strdup(c_string), strlen(c_string) };
+}
+
+void __string_destroy(String *str)
+{
+	free(str->buf);
 }
 
 extern void swimain(Int);
 
 String intToString(Int n) {
 	size_t len = snprintf(NULL, 0, "%" PRIi64, n);
-	char *buf = malloc(len + 1); // XXX: FIXME: do not leak
+	char *buf = malloc(len + 1);
 	snprintf(buf, len + 1, "%" PRIi64, n);
 	return (String){ buf, len };
 }
 
 String doubleToString(Double x) {
 	size_t len = snprintf(NULL, 0, "%lf", x);
-	char *buf = malloc(len + 1); // XXX: FIXME: do not leak
+	char *buf = malloc(len + 1);
 	snprintf(buf, len + 1, "%lf", x);
 	return (String){ buf, len };
 }
@@ -54,10 +60,7 @@ String getLine() {
 		*newline = 0;
 	}
 
-	size_t len = strlen(buf);
-	char *dynbuf = malloc(len + 1);
-	strcpy(dynbuf, buf);
-	return (String){ dynbuf, len }; // XXX: FIXME: do not leak
+	return (String){ strdup(buf), strlen(buf) };
 }
 
 Int stringToInt(String s) {
