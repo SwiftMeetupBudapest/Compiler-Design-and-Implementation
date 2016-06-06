@@ -80,16 +80,6 @@ class CodeGen {
 	}
 
   func callDestructors(scope: [String:LLVMValueRef]) {
-      // TODO: call destructors of temporaries as well
-      for (_, varvalue) in scope {
-          // Is this a (pointer to) String?
-          let type = LLVMTypeOf(varvalue)
-          if LLVMGetTypeKind(type) == LLVMPointerTypeKind && LLVMGetElementType(type) == StringType().llvmType() {
-		          let fn = LLVMGetNamedFunction(self.module, "__string_destroy")
-		          var args = [ varvalue ]
-		          LLVMBuildCall(self.builder, fn, &args, CUnsignedInt(args.count), "")
-          }
-      }
   }
 
 	// returns: value of expression on success; null pointer (nil) on error

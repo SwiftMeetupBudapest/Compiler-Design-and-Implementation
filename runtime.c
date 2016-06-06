@@ -30,11 +30,6 @@ String __string_literal(char *c_string) {
 	return (String){ strdup(c_string), strlen(c_string) };
 }
 
-void __string_destroy(String *str)
-{
-	free(str->buf);
-}
-
 extern void swimain(Int);
 
 String intToString(Int n) {
